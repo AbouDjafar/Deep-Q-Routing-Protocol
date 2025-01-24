@@ -42,7 +42,7 @@ class NetworkSimulatorEnv(gym.Env):
     #We init the network simulator here
     def __init__(self):
         self.viewer = None
-        self.graphname = 'data/lata.net'
+        self.graphname = 'data/6x6.net'
         self.done = False
         self.success_count = 0
         self.nnodes = 0
@@ -51,6 +51,7 @@ class NetworkSimulatorEnv(gym.Env):
         self.nenqueued = {}
         self.interqueuen = []
         self.event_queue = []#Q.PriorityQueue()
+        self.coords = []
         self.nlinks = {}
         self.links = collections.defaultdict(dict)
         self.total_routing_time = 0.0
@@ -63,6 +64,7 @@ class NetworkSimulatorEnv(gym.Env):
         self.queuelimit = 100
         self.send_fail = 0
         self.callmean = 1 #network load
+        self.visited = set() #addedS
 
         self.distance = []#np.zeros((self.nnodes,self.nnodes))
         self.shortest =  []#np.zeros((self.nnodes,self.nnodes))
@@ -81,7 +83,9 @@ class NetworkSimulatorEnv(gym.Env):
         self.next_source = 0
         self.next_dest = 0
 
-    def _step(self, action):
+    
+    
+    def step(self, action):
         # if(self.total_routing_time/self.routed_packets < 10): #totally random, need change
 
         current_event = self.current_event
@@ -120,8 +124,10 @@ class NetworkSimulatorEnv(gym.Env):
             if self.nenqueued[next_node] >= self.queuelimit:
                  self.send_fail = self.send_fail + 1
                  next_node = current_node
-
-            reward =  time_in_queue + self.internode
+            if current_node in self.visited: 
+                reward -= 10 # Forte pénalité pour revisite
+            else:
+                reward =  time_in_queue + self.internode
 
             current_event.node = next_node #do the send!
             current_event.hops += 1
@@ -131,7 +137,7 @@ class NetworkSimulatorEnv(gym.Env):
 
             current_event.qtime = current_time
             if type(current_event) == int:
-                print "this is current_event:{}".format(current_event)
+                print("this is current_event:{}".format(current_event))
             heapq.heappush(self.event_queue,((current_time+1.0, -self.events), current_event))
             self.events += 1
 
@@ -147,7 +153,7 @@ class NetworkSimulatorEnv(gym.Env):
                 return ((current_event.node, current_event.dest), (self.current_event.node, self.current_event.dest)), reward, self.done, {}
 
 
-    def _reset(self):
+    def reset(self):
         self.readin_graph()
         self.distance = np.zeros((self.nnodes,self.nnodes))
         self.shortest =  np.zeros((self.nnodes,self.nnodes))
@@ -161,6 +167,7 @@ class NetworkSimulatorEnv(gym.Env):
         self.enqueued = [0.0]*self.nnodes
         self.nenqueued = [0]*self.nnodes
 
+        self.visited = set() # Réinitialiser l'ensemble des nœuds visités à chaque épisode
 
         inject_event = event(0.0, 0)
         inject_event.source = INJECT
@@ -196,7 +203,9 @@ class NetworkSimulatorEnv(gym.Env):
 
 
             if line_contents[0] == '1000': #node declaration
-
+                x = float(line_contents[2])
+                y = float(line_contents[3])
+                self.coords.append((x, y))
                 self.nlinks[self.nnodes] = 0
                 self.nnodes = self.nnodes + 1
 
@@ -273,7 +282,10 @@ class NetworkSimulatorEnv(gym.Env):
 
         time_in_queue = current_time - current_event.qtime - self.internode
 
-        reward =  time_in_queue + self.internode
+        if current_node in self.visited: 
+            reward = -10 # Forte pénalité pour revisite
+        else:
+            reward =  time_in_queue + self.internode
 
         #if the link wasnt good
         if action < 0 or action not in self.links[current_node]:
@@ -291,8 +303,8 @@ class NetworkSimulatorEnv(gym.Env):
 
         changing = True
 
-        for i in xrange(self.nnodes):
-            for j in  xrange(self.nnodes):
+        for i in range(self.nnodes):
+            for j in  range(self.nnodes):
                 if i == j:
                     self.distance[i][j] = 0
                 else:
@@ -301,11 +313,11 @@ class NetworkSimulatorEnv(gym.Env):
 
         while changing:
             changing = False
-            for i in xrange(self.nnodes):
-                for j in  xrange(self.nnodes):
+            for i in range(self.nnodes):
+                for j in  range(self.nnodes):
                     #/* Update our estimate of distance for sending from i to j. */
                     if i != j:
-                      for k in xrange(self.nlinks[i]):
+                      for k in range(self.nlinks[i]):
                         if  self.distance[i][j] >  1 + self.distance[self.links[i][k]][j]:
                           self.distance[i][j] = 1 + self.distance[self.links[i][k]][j]	#/* Better. */
                           self.shortest[i][j] = k
