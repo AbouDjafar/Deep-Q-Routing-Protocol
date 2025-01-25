@@ -299,26 +299,202 @@ class NetworkSimulatorEnv(gym.Env):
             return reward, (next_node, current_event.dest)
 
 
-    def compute_best(self):
+    def compute_best(self, source=0, destination=0, sortie=False):
 
-        changing = True
-
-        for i in range(self.nnodes):
-            for j in  range(self.nnodes):
-                if i == j:
-                    self.distance[i][j] = 0
-                else:
-                    self.distance[i][j] = self.nnodes+1
-                self.shortest[i][j] = -1
-
-        while changing:
-            changing = False
+        if sortie == False:
+            changing = True
+    
             for i in range(self.nnodes):
-                for j in  range(self.nnodes):
-                    #/* Update our estimate of distance for sending from i to j. */
-                    if i != j:
-                      for k in range(self.nlinks[i]):
-                        if  self.distance[i][j] >  1 + self.distance[self.links[i][k]][j]:
-                          self.distance[i][j] = 1 + self.distance[self.links[i][k]][j]	#/* Better. */
-                          self.shortest[i][j] = k
-                          changing = True
+                for j in range(self.nnodes):
+                    if i == j:
+                        self.distance[i][j] = 0
+                    else:
+                        self.distance[i][j] = self.nnodes + 1
+                    self.shortest[i][j] = -1
+    
+            while changing:
+                changing = False
+                for i in range(self.nnodes):
+                    for j in range(self.nnodes):
+                        if i != j:
+                            updated = False  # Initialize the flag
+                            for k in range(self.nlinks[i]):
+                                if self.distance[i][j] > 1 + self.distance[self.links[i][k]][j]:
+                                    self.distance[i][j] = 1 + self.distance[self.links[i][k]][j]
+                                    self.shortest[i][j] = k
+                                    updated = True  # Set the flag if an update occurs
+                            if updated:  # Proceed to the next iteration only if an update happened
+                                changing = True
+     
+        else:
+            # Construct the shortest path
+            path = [source]
+            current_node = source
+            itr = 0
+            while current_node != destination and itr <= 1000:
+                next_hop = self.shortest[int(current_node)][int(destination)]
+                path.append(next_hop)
+                current_node = next_hop
+                itr += 1
+        
+            return path
+
+#----------------------------------------------------------------------------------------------
+#--------------------------- Path research algorithms -----------------------------------------
+
+    def shortest_path(self, start_node, end_node): 
+        """ 
+        Computes the shortest path between two nodes in the graph using Breadth-First Search. 
+        Args: 
+        start_node: The index of the starting node. 
+        end_node: The index of the ending node. 
+     
+        Returns: 
+            A tuple containing: 
+                - The shortest path as a list of node indices.  Returns None if no path exists. 
+                - The number of nodes visited during the search. 
+        """ 
+ 
+        if start_node < 0 or start_node >= self.nnodes or end_node < 0 or end_node >= self.nnodes: 
+            raise ValueError("Start or end node index out of bounds.") 
+ 
+        queue = collections.deque([(start_node, [start_node])])  # (node, path_so_far) 
+        visited = {start_node}  #Use a set to track visited nodes efficiently 
+        nodes_visited = 0 
+         
+        while queue: 
+            current_node, path = queue.popleft() 
+            nodes_visited += 1 
+         
+            if current_node == end_node: 
+                return path, nodes_visited 
+         
+            # Correct iteration: Iterate over the neighbors directly 
+            neighbors = []
+            for i in range(self.nlinks[current_node]):
+                neighbors.append(self.links[current_node][i])
+                
+            for neighbor in neighbors: 
+                if neighbor not in visited: 
+                    visited.add(neighbor)  # Add the neighbor to visited, not the slice 
+                    queue.append((neighbor, path + [neighbor])) 
+         
+        return None, nodes_visited  # No path found 
+    
+
+    def dijkstra(self, source, destination):
+        """
+        Finds the shortest path from source to destination using Dijkstra's algorithm.
+    
+        Args:
+            source: The source node.
+            destination: The destination node.
+    
+        Returns:
+            A tuple containing:
+                - A list representing the shortest path from source to destination, or None if no path exists.
+                - The number of nodes explored during the search.
+        """
+    
+        dist = [float('inf')] * self.nnodes  # Distances from source to all nodes
+        prev = [-1] * self.nnodes  # Previous node in the shortest path
+        visited = [False] * self.nnodes
+        nodes_explored = 0
+    
+        dist[source] = 0
+    
+        while True:
+            min_dist = float('inf')
+            u = None
+    
+            # Find the node with the minimum distance among unvisited nodes
+            for v in range(self.nnodes):
+                if not visited[v] and dist[v] < min_dist:
+                    min_dist = dist[v]
+                    u = v
+    
+            if u is None:
+                break  # No unvisited nodes left
+    
+            visited[u] = True
+            nodes_explored += 1
+    
+            # Update distances of neighbors
+            for v in self.links[u]:
+                alt = dist[u] + 1  # Assuming unit edge weights
+                if alt < dist[v]:
+                    dist[v] = alt
+                    prev[v] = u
+    
+        # Reconstruct the path
+        path = []
+        if dist[destination] == float('inf'):
+            return None, nodes_explored  # No path exists
+    
+        current_node = destination
+        while current_node != source:
+            path.insert(0, current_node)
+            current_node = prev[current_node]
+        path.insert(0, source)
+    
+        return path, nodes_explored
+    
+    
+    def heuristic(self, current, goal):
+        # Simple Euclidean distance heuristic
+        x1, y1 = self.coords[current]
+        x2, y2 = self.coords[goal]
+        return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+    
+    def a_star(self, source, destination):
+        """
+        Finds the shortest path from source to destination using the A* algorithm.
+    
+        Args:
+            source: The source node.
+            destination: The destination node.
+    
+        Returns:
+            A tuple containing:
+                - A list representing the shortest path from source to destination, or None if no path exists.
+                - The number of nodes explored during the search.
+        """
+    
+        open_set = set([source])
+        closed_set = set()
+        came_from = {}
+        g_score = {node: float('inf') for node in range(self.nnodes)}
+        g_score[source] = 0
+        f_score = {node: float('inf') for node in range(self.nnodes)}
+        f_score[source] = self.heuristic(source, destination)
+        nodes_explored = 1  # Count the source node
+    
+        while open_set:
+            current = min(open_set, key=lambda node: f_score[node])
+    
+            if current == destination:
+                # Reconstruct path
+                path = [destination]
+                while current in came_from:
+                    current = came_from[current]
+                    path.insert(0, current)
+                return path, nodes_explored
+    
+            open_set.remove(current)
+            closed_set.add(current)
+            
+            for neighbor in self.links[current]:
+                tentative_g_score = g_score[current] + 1  # Assuming unit edge weights
+    
+                if neighbor in closed_set and tentative_g_score >= g_score[neighbor]:
+                    continue
+    
+                if neighbor not in open_set or tentative_g_score < g_score[neighbor]:
+                    came_from[neighbor] = current
+                    g_score[neighbor] = tentative_g_score
+                    f_score[neighbor] = g_score[neighbor] + self.heuristic(neighbor, destination)
+                    if neighbor not in open_set:
+                        open_set.add(neighbor)
+                        nodes_explored += 1
+    
+        return None, nodes_explored  # No path found

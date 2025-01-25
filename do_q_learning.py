@@ -13,7 +13,7 @@ import pylab as pl
 # then tests the value of the learning by every 1000 iterations using the best choice and printing the reward
 ####
 
-def afficher_noeud(coords, color, r, num, ax, pl):
+def afficher_noeud(coords, color, r, num, ax, plt):
     x, y = coords
     mult = 600
     a = 15
@@ -22,7 +22,7 @@ def afficher_noeud(coords, color, r, num, ax, pl):
     y = float(y) * mult + a
     drawing = plt.Circle((x, y), r, color=color, fill=True)
     ax.add_artist(drawing)
-    pl.text((x - font_size), (y - font_size), str(num), color="white", fontsize=font_size)
+    plt.text((x - font_size), (y - font_size), str(num), color="white", fontsize=font_size)
     
 def afficher_liens(links, coords, color, ax):
     k = 600
@@ -64,13 +64,13 @@ def afficher(coords, links, path, src, dest, r, namefile, ax):
     #Afficher les noeuds intermédiaires du chemin en orange
     for i in range(1, len(path) - 1):
         act_node = path[i]
-        afficher_noeud(coords[act_node], 'orange', r, act_node, ax, pl)
+        afficher_noeud(coords[act_node], 'orange', r, act_node, ax, plt)
     
     # Afficher le noeud source en bleu
-    afficher_noeud(coords[src], 'blue', r, src, ax, pl)
+    afficher_noeud(coords[src], 'blue', r, src, ax, plt)
         
     # Afficher le noeud de destination en vert
-    afficher_noeud(coords[dest], 'green', r, dest, ax, pl)
+    afficher_noeud(coords[dest], 'green', r, dest, ax, plt)
     
     #Afficher le noeud de l'action en orange
     #afficher_noeud(coords[act_node], 'orange', r, act_node, ax, pl)
@@ -162,8 +162,8 @@ def main():
 
                 if t%10000 == 0:
 
-                    if env.routed_packets != 0:
-                        print ("q learning with callmean:{} time:{}, average delivery time:{}, length of average route:{}, r_sum_random:{}".format(i, t, float(env.total_routing_time)/float(env.routed_packets), float(env.total_hops)/float(env.routed_packets), r_sum_random))
+                    #if env.routed_packets != 0:
+                    #    print ("q learning with callmean:{} time:{}, average delivery time:{}, length of average route:{}, r_sum_random:{}".format(i, t, float(env.total_routing_time)/float(env.routed_packets), float(env.total_hops)/float(env.routed_packets), r_sum_random))
 
 
                     current_state = state_pair[1]
@@ -183,6 +183,12 @@ def main():
 
                     if env.routed_packets != 0:
                         print("---->src: {}  dest: {}".format(n, dest))
+                        #d_path, d_hops = env.dijkstra(n, dest)
+                        #a_star_path, a_hops = env.a_star(n, dest)
+                        a_path, v = env.shortest_path(n, dest)
+                        print(">>>>>>> Path Compute best: {}  visited nodes (hops): {}".format(a_path, v))
+                        #print(">>>>>> path selon Dijkstra: {}  hops: {}\n>>>>>> path selon A*: {}  hops: {}\n".format(d_path, d_hops, a_star_path, a_hops))
+                        
                         find, path = reconstruct_path(n, dest, agent.q, env.links, env.nlinks)
                         print(">>>>>>>> path: ", path)
                         print ("q learning with callmean:{} time:{}, average delivery time:{}, length of average route:{}, r_sum_best:{}\n\n".format(i, t, float(env.total_routing_time)/float(env.routed_packets), float(env.total_hops)/float(env.routed_packets), r_sum_best))
@@ -190,7 +196,7 @@ def main():
                             ax = plot_config("Q-Routing")
                             afficher(env.coords, env.links, path, n, dest, 15, "q-routing", ax)
                         path = []
-
+                        
 
 
 if __name__ == '__main__':
