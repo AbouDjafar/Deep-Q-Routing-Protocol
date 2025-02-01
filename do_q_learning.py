@@ -140,6 +140,8 @@ def main():
         done = False
         r_sum_random = r_sum_best = 0
         config = agent.config
+        avg_delay = []
+        avg_length = []
 
         for t in range(50001):
             path = []
@@ -153,12 +155,17 @@ def main():
                     reward, next_state = env.pseudostep(action)
                     agent.learn(current_state, next_state, reward, action, done)
 
-                action  = agent.act(current_state, env.nlinks)
+                action  = agent.act(current_state)
                 state_pair, reward, done, _ = env.step(action)
 
                 next_state = state_pair[0]
                 agent.learn(current_state, next_state, reward, action, done)
                 r_sum_random += reward
+                
+                if env.routed_packets > 0:
+                    avg_delay.append(float(env.total_routing_time)/float(env.routed_packets))
+                    avg_length.append(float(env.total_hops)/float(env.routed_packets))
+                  
 
                 if t%10000 == 0:
 
@@ -183,20 +190,39 @@ def main():
 
                     if env.routed_packets != 0:
                         print("---->src: {}  dest: {}".format(n, dest))
-                        #d_path, d_hops = env.dijkstra(n, dest)
-                        #a_star_path, a_hops = env.a_star(n, dest)
                         a_path, v = env.shortest_path(n, dest)
                         print(">>>>>>> Path Compute best: {}  visited nodes (hops): {}".format(a_path, v))
-                        #print(">>>>>> path selon Dijkstra: {}  hops: {}\n>>>>>> path selon A*: {}  hops: {}\n".format(d_path, d_hops, a_star_path, a_hops))
                         
                         find, path = reconstruct_path(n, dest, agent.q, env.links, env.nlinks)
                         print(">>>>>>>> path: ", path)
                         print ("q learning with callmean:{} time:{}, average delivery time:{}, length of average route:{}, r_sum_best:{}\n\n".format(i, t, float(env.total_routing_time)/float(env.routed_packets), float(env.total_hops)/float(env.routed_packets), r_sum_best))
+
                         if find:
                             ax = plot_config("Q-Routing")
                             afficher(env.coords, env.links, path, n, dest, 15, "q-routing", ax)
+                        else:
+                            ax = plot_config("Q-Routing")
+                            afficher(env.coords, env.links, a_path, n, dest, 15, "q-routing", ax)
                         path = []
                         
+    """#Affichage des graphiques de performance
+    plt.figure(figsize=(12, 6))
+    plt.plot(avg_delay, label='Delai moyen')
+    plt.title('Evolution du delai d\'acheminement des paquets au fil des époques')
+    plt.xlabel('Epoques')
+    plt.ylabel('Delai (ms)')
+    plt.legend()
+    plt.savefig('Delai Q-Routing.png')
+    plt.show()
+    
+    plt.figure(figsize=(12, 6))
+    plt.plot(avg_length, label='Nombre de sauts Q-Learning')
+    plt.title('Evolution de la longueur de la route des paquets au fil des époques')
+    plt.xlabel('Epoques')
+    plt.ylabel('Longueur (sauts)')
+    plt.legend()
+    plt.savefig('Longueur Q-Routing.png')
+    plt.show()"""
 
 
 if __name__ == '__main__':
