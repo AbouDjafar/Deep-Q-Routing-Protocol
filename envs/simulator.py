@@ -381,3 +381,38 @@ class NetworkSimulatorEnv(gym.Env):
          
         return None, nodes_visited  # No path found 
     
+#-------------------------- AODV routing ----------------------------------------------------------
+    def RERR(self):
+        print("Route Error")
+        return None
+
+    def RREP(self, path, hops):
+        return (path, hops)
+
+    def RREQ(self, current_node, dest, path, hops, all_routes):
+        if current_node == dest:
+            all_routes.append(self.RREP(path.copy() + [current_node], hops))
+            return
+
+        if current_node is None:
+            self.RERR()
+            return
+
+        path.append(current_node)
+        for i in range(self.nlinks[current_node]):
+            next_node = self.links[current_node][i]
+            if next_node not in path: # Eviter les boucles
+                self.RREQ(next_node, dest, path.copy(), (hops + self.nlinks[current_node] + 1), all_routes)
+
+    def AODV_routing(self, start_node, end_node):
+        if start_node < 0 or start_node >= self.nnodes or end_node < 0 or end_node >= self.nnodes:
+            raise ValueError("Start or end node index out of bounds.")
+
+        all_routes = []
+        self.RREQ(start_node, end_node, [], 0, all_routes)
+
+        if not all_routes:
+            return None  # Aucun chemin trouvé
+
+        best_path = min(all_routes, key=lambda x: x[1])
+        return (best_path[0], best_path[1])

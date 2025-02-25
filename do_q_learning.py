@@ -48,43 +48,50 @@ def afficher_shortest_path(coords, path, color, ax):
                                  color=color, linewidth=2) # Red line for shortest path 
             ax.add_artist(drawing) 
     
-def afficher(coords, links, path, src, dest, r, namefile, ax):           
-    #Afficher les arcs (liaisons) entre chaque noeud
-    afficher_liens(links, coords, 'black', ax)
-    
-    #Afficher le chemin de routage  en orange
-    afficher_shortest_path(coords, path, 'orange', ax)
-    
-    # Afficher tous les neouds en noir
-    i = 0
-    for node in coords:        
-        afficher_noeud(node, 'black', r, i, ax, pl)
-        i = i + 1
-    
-    #Afficher les noeuds intermédiaires du chemin en orange
-    for i in range(1, len(path) - 1):
-        act_node = path[i]
-        afficher_noeud(coords[act_node], 'orange', r, act_node, ax, plt)
-    
-    # Afficher le noeud source en bleu
-    afficher_noeud(coords[src], 'blue', r, src, ax, plt)
+def afficher(coords, links, Path, src, dest, r, namefile, ax):    
+    path = []
+    idx = 0
+    while (len(path) < len(Path)):   
+        path.append(Path[idx])
+        idx = idx + 1
+        ax = plot_config("Q-Routing")
+        #Afficher les arcs (liaisons) entre chaque noeud
+        afficher_liens(links, coords, 'black', ax)
         
-    # Afficher le noeud de destination en vert
-    afficher_noeud(coords[dest], 'green', r, dest, ax, plt)
-    
-    #Afficher le noeud de l'action en orange
-    #afficher_noeud(coords[act_node], 'orange', r, act_node, ax, pl)
-    legend_elements = [ 
-    plt.Line2D([0], [0], marker='o', color='w', label='Noeud', markerfacecolor='black', markersize=10), 
-    plt.Line2D([0], [0], marker='o', color='w', label='Noeud Source', markerfacecolor='blue', markersize=10), 
-    plt.Line2D([0], [0], marker='o', color='w', label='Noeud Destination', markerfacecolor='green', markersize=10), 
-    plt.Line2D([0], [0], marker='o', color='w', label='Noeud Intermédiaire', markerfacecolor='orange', markersize=10), 
-    plt.Line2D([0], [0], color='black', lw=2, label='Lien'),
-    plt.Line2D([0], [0], color='orange', lw=2, label='lien actif')] 
-    ax.legend(handles=legend_elements, loc='lower center', bbox_to_anchor=(0.5, -0.2), ncol=3) #Added Legend 
-    
-    plt.savefig(f'{namefile}-env simu.png')
-    plt.show()
+        # Afficher tous les neouds en noir
+        i = 0
+        for node in coords:        
+            afficher_noeud(node, 'black', r, i, ax, pl)
+            i = i + 1
+        
+        # Afficher le noeud source en bleu
+        afficher_noeud(coords[src], 'blue', r, src, ax, plt)
+            
+        # Afficher le noeud de destination en vert
+        afficher_noeud(coords[dest], 'green', r, dest, ax, plt)
+        
+        #Afficher le chemin de routage  en orange
+        afficher_shortest_path(coords, path, 'orange', ax)
+        
+        #Afficher les noeuds intermédiaires du chemin en orange
+        for i in range(1, len(path) - 1):
+            act_node = path[i]
+            afficher_noeud(coords[act_node], 'orange', r, act_node, ax, plt)
+        
+        #Afficher le noeud de l'action en orange
+        #afficher_noeud(coords[act_node], 'orange', r, act_node, ax, pl)
+        legend_elements = [ 
+        plt.Line2D([0], [0], marker='o', color='w', label='Noeud', markerfacecolor='black', markersize=10), 
+        plt.Line2D([0], [0], marker='o', color='w', label='Noeud Source', markerfacecolor='blue', markersize=10), 
+        plt.Line2D([0], [0], marker='o', color='w', label='Noeud Destination', markerfacecolor='green', markersize=10), 
+        plt.Line2D([0], [0], marker='o', color='w', label='Noeud Intermédiaire', markerfacecolor='orange', markersize=10), 
+        plt.Line2D([0], [0], color='black', lw=2, label='Lien'),
+        plt.Line2D([0], [0], color='orange', lw=2, label='lien actif')] 
+        ax.legend(handles=legend_elements, loc='lower center', bbox_to_anchor=(0.5, -0.2), ncol=3) #Added Legend 
+        
+        #On sauvegarde le dernier plot
+        plt.savefig('Plots/{}-env simu-{}.png'.format(namefile, idx))
+        plt.show()
     
 def plot_config(namefile, largeur = 500, longueur = 400):
     plt.figure(figsize=(20, 16) ,dpi=600)
@@ -168,6 +175,8 @@ def main():
                   
 
                 if t%10000 == 0:
+                    aodv_hops = []
+                    path_search_hops = []
 
                     #if env.routed_packets != 0:
                     #    print ("q learning with callmean:{} time:{}, average delivery time:{}, length of average route:{}, r_sum_random:{}".format(i, t, float(env.total_routing_time)/float(env.routed_packets), float(env.total_hops)/float(env.routed_packets), r_sum_random))
@@ -191,38 +200,43 @@ def main():
                     if env.routed_packets != 0:
                         print("---->src: {}  dest: {}".format(n, dest))
                         a_path, v = env.shortest_path(n, dest)
+                        aodv = env.AODV_routing(n, dest)
+                        print(">>>>>>> Path AODV: {}  visited nodes (hops): {}".format(aodv[0], aodv[1]))
                         print(">>>>>>> Path Compute best: {}  visited nodes (hops): {}".format(a_path, v))
-                        
+                        aodv_hops.append(aodv[1])
+                        path_search_hops.append(v)
                         find, path = reconstruct_path(n, dest, agent.q, env.links, env.nlinks)
-                        print(">>>>>>>> path: ", path)
+                        print(">>>>>>>> path Q-Routing: {}".format(path))
                         print ("q learning with callmean:{} time:{}, average delivery time:{}, length of average route:{}, r_sum_best:{}\n\n".format(i, t, float(env.total_routing_time)/float(env.routed_packets), float(env.total_hops)/float(env.routed_packets), r_sum_best))
 
-                        if find:
+                        """if find:
                             ax = plot_config("Q-Routing")
                             afficher(env.coords, env.links, path, n, dest, 15, "q-routing", ax)
                         else:
                             ax = plot_config("Q-Routing")
-                            afficher(env.coords, env.links, a_path, n, dest, 15, "q-routing", ax)
+                            afficher(env.coords, env.links, a_path, n, dest, 15, "q-routing", ax)"""
                         path = []
                         
-    """#Affichage des graphiques de performance
-    plt.figure(figsize=(12, 6))
+    #Affichage des graphiques de performance
+    """plt.figure(figsize=(12, 6))
     plt.plot(avg_delay, label='Delai moyen')
     plt.title('Evolution du delai d\'acheminement des paquets au fil des époques')
     plt.xlabel('Epoques')
     plt.ylabel('Delai (ms)')
     plt.legend()
     plt.savefig('Delai Q-Routing.png')
-    plt.show()
+    plt.show()"""
     
     plt.figure(figsize=(12, 6))
-    plt.plot(avg_length, label='Nombre de sauts Q-Learning')
-    plt.title('Evolution de la longueur de la route des paquets au fil des époques')
+    #plt.plot(avg_length, label='Nombre de sauts Q-Learning')
+    plt.plot(aodv_hops, label='Nombre de sauts AODV')
+    plt.plot(path_search_hops, label='Nombre de sauts Path Search')
+    plt.title('EComparaison du nombre de sauts au fil des époques')
     plt.xlabel('Epoques')
-    plt.ylabel('Longueur (sauts)')
+    plt.ylabel('Longueur (nombre sauts)')
     plt.legend()
     plt.savefig('Longueur Q-Routing.png')
-    plt.show()"""
+    plt.show()
 
 
 if __name__ == '__main__':
