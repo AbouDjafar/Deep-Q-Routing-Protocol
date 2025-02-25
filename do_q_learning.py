@@ -147,8 +147,11 @@ def main():
         done = False
         r_sum_random = r_sum_best = 0
         config = agent.config
+        
         avg_delay = []
-        avg_length = []
+        avg_length = []    
+        aodv_hops = []
+        path_search_hops = []
 
         for t in range(50001):
             path = []
@@ -169,14 +172,11 @@ def main():
                 agent.learn(current_state, next_state, reward, action, done)
                 r_sum_random += reward
                 
-                if env.routed_packets > 0:
+                """if env.routed_packets > 0:
                     avg_delay.append(float(env.total_routing_time)/float(env.routed_packets))
-                    avg_length.append(float(env.total_hops)/float(env.routed_packets))
-                  
+                    avg_length.append(float(env.total_hops)/float(env.routed_packets))"""
 
                 if t%10000 == 0:
-                    aodv_hops = []
-                    path_search_hops = []
 
                     #if env.routed_packets != 0:
                     #    print ("q learning with callmean:{} time:{}, average delivery time:{}, length of average route:{}, r_sum_random:{}".format(i, t, float(env.total_routing_time)/float(env.routed_packets), float(env.total_hops)/float(env.routed_packets), r_sum_random))
@@ -208,7 +208,7 @@ def main():
                         find, path = reconstruct_path(n, dest, agent.q, env.links, env.nlinks)
                         print(">>>>>>>> path Q-Routing: {}".format(path))
                         print ("q learning with callmean:{} time:{}, average delivery time:{}, length of average route:{}, r_sum_best:{}\n\n".format(i, t, float(env.total_routing_time)/float(env.routed_packets), float(env.total_hops)/float(env.routed_packets), r_sum_best))
-
+                        avg_length.append(int(float(env.total_hops)/float(env.routed_packets)))
                         """if find:
                             ax = plot_config("Q-Routing")
                             afficher(env.coords, env.links, path, n, dest, 15, "q-routing", ax)
@@ -228,14 +228,14 @@ def main():
     plt.show()"""
     
     plt.figure(figsize=(12, 6))
-    #plt.plot(avg_length, label='Nombre de sauts Q-Learning')
+    plt.plot(avg_length, label='Nombre de sauts Q-Learning')
     plt.plot(aodv_hops, label='Nombre de sauts AODV')
     plt.plot(path_search_hops, label='Nombre de sauts Path Search')
-    plt.title('EComparaison du nombre de sauts au fil des époques')
+    plt.title('Comparaison du nombre de sauts au fil des époques')
     plt.xlabel('Epoques')
     plt.ylabel('Longueur (nombre sauts)')
     plt.legend()
-    plt.savefig('Longueur Q-Routing.png')
+    plt.savefig('Longueur Q-Routing cycle.png')
     plt.show()
 
 
